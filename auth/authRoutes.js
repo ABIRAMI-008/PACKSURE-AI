@@ -9,13 +9,29 @@ const {
 
 const authenticateToken = require("./authMiddleware");
 
-// Signup
-router.post("/signup", signup);
+const validate = require("./validationMiddleware");
 
-// Login
-router.post("/login", login);
+const {
+  signupSchema,
+  loginSchema
+} = require("./authValidation");
 
-// Current logged-in user
-router.get("/me", authenticateToken, getMe);
+router.post(
+  "/signup",
+  validate(signupSchema),
+  signup
+);
+
+router.post(
+  "/login",
+  validate(loginSchema),
+  login
+);
+
+router.get(
+  "/me",
+  authenticateToken,
+  getMe
+);
 
 module.exports = router;
