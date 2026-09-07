@@ -10,15 +10,25 @@ const pool = new Pool({
 // SIGNUP
 const signup = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, accountType } = req.body;
 
-    if (!name || !email || !password) {
+    // Check required fields
+    if (!name || !email || !password || !accountType) {
       return res.status(400).json({
-        message: "Name, email and password are required",
+        message: "Name, email, password and account type are required",
       });
     }
 
-    // Check if user already exists
+    // Allowed account types
+    const allowedAccountTypes = ["User", "Compliance Officer"];
+
+    if (!allowedAccountTypes.includes(accountType)) {
+      return res.status(400).json({
+        message: "Invalid account type",
+      });
+    }
+
+    // Check existing user
     const existingUser = await pool.query(
       "SELECT id FROM users WHERE email = $1",
       [email]
@@ -35,19 +45,21 @@ const signup = async (req, res) => {
 
     // Create user
     const result = await pool.query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, $2, $3)
+      `INSERT INTO users
+       (name, email, password_hash, account_type)
+       VALUES ($1, $2, $3, $4)
        RETURNING id, name, email, account_type, created_at`,
-      [name, email, passwordHash]
+      [name, email, passwordHash, accountType]
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "User registered successfully",
       user: result.rows[0],
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Signup error:", error);
+
+    return res.status(500).json({
       message: "Server error",
     });
   }
@@ -78,7 +90,7 @@ const login = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Check password
+    // Compare password
     const passwordMatch = await bcrypt.compare(
       password,
       user.password_hash
@@ -97,10 +109,12 @@ const login = async (req, res) => {
         accountType: user.account_type,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      {
+        expiresIn: "1h",
+      }
     );
 
-    res.json({
+    return res.json({
       message: "Login successful",
       token,
       user: {
@@ -111,8 +125,9 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Login error:", error);
+
+    return res.status(500).json({
       message: "Server error",
     });
   }
@@ -134,12 +149,13 @@ const getMe = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       user: result.rows[0],
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Get current user error:", error);
+
+    return res.status(500).json({
       message: "Server error",
     });
   }
