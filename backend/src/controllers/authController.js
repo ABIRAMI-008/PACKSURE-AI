@@ -34,11 +34,14 @@ const signup = async (req, res) => {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Save user to database
+        // Create user
         const result = await pool.query(
-            `INSERT INTO users (name, email, password_hash)
-             VALUES ($1, $2, $3)
-             RETURNING id, name, email, created_at`,
+            `INSERT INTO users
+                (name, email, password_hash)
+             VALUES
+                ($1, $2, $3)
+             RETURNING
+                id, name, email, account_type, created_at`,
             [name, email, passwordHash]
         );
 
@@ -76,7 +79,14 @@ const login = async (req, res) => {
 
         // Find user
         const result = await pool.query(
-            "SELECT id, name, email, password_hash FROM users WHERE email = $1",
+            `SELECT
+                id,
+                name,
+                email,
+                password_hash,
+                account_type
+             FROM users
+             WHERE email = $1`,
             [email]
         );
 
@@ -106,7 +116,8 @@ const login = async (req, res) => {
         const token = jwt.sign(
             {
                 id: user.id,
-                email: user.email
+                email: user.email,
+                account_type: user.account_type
             },
             process.env.JWT_SECRET,
             {
@@ -114,6 +125,7 @@ const login = async (req, res) => {
             }
         );
 
+        // Send response
         res.json({
             success: true,
             message: "Login successful",
@@ -121,7 +133,8 @@ const login = async (req, res) => {
             data: {
                 id: user.id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                account_type: user.account_type
             }
         });
 
